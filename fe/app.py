@@ -5,7 +5,7 @@ import streamlit as st
 
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
-    "http://localhost:8000"
+    "https://ai-research-assistant-gdo1.onrender.com"
 )
 
 st.set_page_config(
