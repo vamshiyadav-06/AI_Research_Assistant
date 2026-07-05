@@ -1,11 +1,22 @@
 import os
+import logging
 
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi import UploadFile
 from fastapi import File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from agent import run_agent
+from autonomous_agent import run_autonomous_agent
+from autonomous_agent.llm import InvalidLLMJSONError, LLMError
+from autonomous_agent.schemas import AgentError, AgentRequest, AgentResult
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI Research Assistant"
@@ -25,6 +36,24 @@ os.makedirs(
     UPLOAD_FOLDER,
     exist_ok=True
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request,
+    exc: RequestValidationError
+):
+
+    return JSONResponse(
+        status_code=400,
+        content={
+            "status": "error",
+            "message": "Invalid request input.",
+            "details": {
+                "error": str(exc)
+            }
+        }
+    )
 
 
 @app.get("/")
@@ -66,3 +95,46 @@ async def ask(
     result = run_agent(query)
 
     return result
+
+
+@app.post("/agent", response_model=AgentResult)
+async def agent(
+    payload: AgentRequest
+):
+
+    request_text = payload.request.strip()
+
+    if len(request_text) < 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Request must contain at least 5 characters."
+        )
+
+    try:
+        return run_autonomous_agent(request_text)
+    except InvalidLLMJSONError as exc:
+        logger.exception("Planner or generator returned invalid JSON")
+        raise HTTPException(
+            status_code=502,
+            detail=AgentError(
+                message="The LLM returned invalid JSON after retry.",
+                details={"error": str(exc)}
+            ).dict()
+        )
+    except LLMError as exc:
+        logger.exception("LLM configuration or execution failed")
+        raise HTTPException(
+            status_code=500,
+            detail=AgentError(
+                message=str(exc)
+            ).dict()
+        )
+    except ValidationError as exc:
+        logger.exception("LLM response did not match the expected schema")
+        raise HTTPException(
+            status_code=502,
+            detail=AgentError(
+                message="The LLM response did not match the expected agent schema.",
+                details={"error": str(exc)}
+            ).dict()
+        )

@@ -1,139 +1,137 @@
 # AI Research Assistant
 
-An Agentic AI Research Assistant built using FastAPI, Streamlit, Groq, Tavily Search, Website Reader, and PDF Reader.
+An Agentic AI Research Assistant built with FastAPI, Streamlit, Groq, Tavily Search, Website Reader, PDF Reader, and an autonomous document-generation agent.
 
-The assistant intelligently decides which tool to use based on the user's query and generates accurate, context-aware responses.
-
----
+The original RAG-style assistant remains available through `/ask`. The project now also includes `/agent`, which plans and executes a business-document workflow and generates a Microsoft Word `.docx` file.
 
 ## Features
 
-* Web Search using Tavily
-* Website Content Extraction
-* PDF Document Analysis
-* AI-powered Tool Selection
-* FastAPI Backend
-* Streamlit Frontend
-* Groq LLM Integration
-* Ready for Render and Streamlit Cloud Deployment
-
----
+* Web search using Tavily
+* Website content extraction
+* PDF document analysis
+* AI-powered tool selection for research queries
+* Autonomous planning for business document requests
+* Reflection and self-check before final document generation
+* Professional Word document generation with `python-docx`
+* FastAPI backend
+* Streamlit frontend
+* Groq LLM integration
 
 ## Architecture
 
 ```text
 User
-  │
-  ▼
-Streamlit Frontend
-  │
-  ▼
+  |
+  v
+Streamlit Frontend / API Client
+  |
+  v
 FastAPI Backend
-  │
-  ▼
-Research Agent
-  │
-  ├── Web Search Tool
-  ├── Website Reader Tool
-  └── PDF Reader Tool
-  │
-  ▼
-Groq LLM
-  │
-  ▼
-Final Response
+  |
+  +-- /ask Research Agent
+  |     +-- Web Search Tool
+  |     +-- Website Reader Tool
+  |     +-- PDF Reader Tool
+  |     v
+  |   Groq LLM Response
+  |
+  +-- /agent Autonomous Document Agent
+        +-- Planner
+        +-- Task Executor
+        +-- Reflection / Self Check
+        +-- Word Generator
+        v
+      generated_docs/*.docx
 ```
 
----
+## Autonomous Agent Workflow
+
+```text
+User Request
+  |
+  v
+Planner
+  |
+  v
+Task Executor
+  |
+  v
+Reflection / Self Check
+  |
+  v
+Word Generator
+  |
+  v
+API Response
+```
+
+The planner returns structured JSON containing:
+
+* `document_type`
+* `assumptions`
+* `required_sections`
+* `execution_plan`
+
+Supported document types:
+
+* Business Proposal
+* Meeting Minutes
+* Project Plan
+* Technical Design
+* Business Report
+* SOP
+* Product Specification
+* Research Summary
+* Implementation Plan
+
+If details are missing, the agent makes reasonable business assumptions and includes them in the response.
 
 ## Project Structure
 
 ```text
 AI_Research_Assistant/
-
-├── backend/
-│   ├── main.py
-│   ├── agent.py
-│   ├── requirements.txt
-│   ├── .env
-│   │
-│   ├── uploads/
-│   │
-│   └── tools/
-│       ├── __init__.py
-│       ├── web_search.py
-│       ├── website_reader.py
-│       └── pdf_reader.py
-│
-├── frontend/
-│   ├── app.py
-│   └── requirements.txt
-│
-├── .gitignore
-└── README.md
+|-- be/
+|   |-- main.py
+|   |-- agent.py
+|   |-- requirements.txt
+|   |-- uploads/
+|   |-- generated_docs/
+|   |-- autonomous_agent/
+|   |   |-- __init__.py
+|   |   |-- schemas.py
+|   |   |-- llm.py
+|   |   |-- planner.py
+|   |   |-- executor.py
+|   |   |-- reflection.py
+|   |   |-- document_generator.py
+|   |   |-- workflow.py
+|   |-- tools/
+|       |-- __init__.py
+|       |-- web_search.py
+|       |-- website_reader.py
+|       |-- pdf_reader.py
+|-- fe/
+|   |-- app.py
+|   |-- requirements.txt
+|-- .gitignore
+|-- README.md
 ```
-
----
-
-## Tech Stack
-
-### Backend
-
-* FastAPI
-* Python
-
-### Frontend
-
-* Streamlit
-
-### AI Model
-
-* Groq
-* Llama 3.3 70B Versatile
-
-### Tools
-
-* Tavily Search API
-* BeautifulSoup
-* Requests
-* PyMuPDF
-
----
-
-## Installation
-
-### Clone Repository
-
-```bash
-git clone <repository-url>
-
-cd AI_Research_Assistant
-```
-
----
 
 ## Backend Setup
 
-Navigate to backend folder:
-
 ```bash
-cd backend
-```
-
-Install dependencies:
-
-```bash
+cd be
 pip install -r requirements.txt
 ```
 
-Create `.env` file:
+Create a `.env` file in `be/`:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
 TAVILY_API_KEY=your_tavily_api_key
 ```
 
-Run backend:
+Run the backend:
 
 ```bash
 uvicorn main:app --reload
@@ -145,31 +143,17 @@ Backend URL:
 http://localhost:8000
 ```
 
-Swagger Documentation:
+Swagger documentation:
 
 ```text
 http://localhost:8000/docs
 ```
 
----
-
 ## Frontend Setup
 
-Navigate to frontend folder:
-
 ```bash
-cd frontend
-```
-
-Install dependencies:
-
-```bash
+cd fe
 pip install -r requirements.txt
-```
-
-Run Streamlit:
-
-```bash
 streamlit run app.py
 ```
 
@@ -178,8 +162,6 @@ Frontend URL:
 ```text
 http://localhost:8501
 ```
-
----
 
 ## API Endpoints
 
@@ -197,8 +179,6 @@ Response:
 }
 ```
 
----
-
 ### Upload PDF
 
 ```http
@@ -206,16 +186,6 @@ POST /upload-pdf
 ```
 
 Uploads a PDF for analysis.
-
-Response:
-
-```json
-{
-  "message": "PDF Uploaded Successfully"
-}
-```
-
----
 
 ### Ask Question
 
@@ -240,186 +210,122 @@ Response:
 }
 ```
 
----
+### Autonomous Document Agent
 
-## Available Tools
-
-### Web Search Tool
-
-Uses Tavily Search API to retrieve real-time information from the internet.
-
-Example:
-
-```text
-What are the latest developments in AI?
+```http
+POST /agent
 ```
 
----
+Request:
 
-### Website Reader Tool
-
-Reads and extracts content from webpages.
-
-Example:
-
-```text
-Summarize https://fastapi.tiangolo.com/
+```json
+{
+  "request": "Create a business proposal for implementing AI customer support."
+}
 ```
 
----
+Response:
 
-### PDF Reader Tool
-
-Extracts and analyzes text from uploaded PDF files.
-
-Example:
-
-```text
-Summarize the uploaded PDF
+```json
+{
+  "status": "completed",
+  "execution_plan": [
+    "Understand the business request",
+    "Identify assumptions",
+    "Create the document outline",
+    "Generate section content",
+    "Review for completeness and tone",
+    "Create the Word document"
+  ],
+  "assumptions": [
+    "Assume a medium-sized business",
+    "Budget is not specified",
+    "Timeline is flexible"
+  ],
+  "document_type": "Business Proposal",
+  "document_path": "generated_docs/business_proposal_20260706_101500.docx",
+  "execution_time": "2.4 sec",
+  "reflection": "No critical issues found."
+}
 ```
 
----
+Invalid input returns HTTP 400. If the LLM returns invalid JSON, the app retries once and then returns a structured error if parsing still fails.
 
-## Tool Selection Process
+## Sample Test Requests
 
-The AI agent evaluates the user query and selects the most appropriate tool.
-
-### Examples
-
-#### Web Search
-
-Input:
-
-```text
-Latest AI news
+```json
+{
+  "request": "Create meeting minutes for today's sprint planning meeting."
+}
 ```
 
-Tool Selected:
-
-```text
-web_search
+```json
+{
+  "request": "Prepare a business proposal for implementing AI customer support. No budget is available. Timeline is unknown. Decide reasonable assumptions yourself."
+}
 ```
 
----
+## Generated Documents
 
-#### Website Reader
-
-Input:
+Word files are saved in:
 
 ```text
-Summarize https://www.python.org/
+be/generated_docs/
 ```
 
-Tool Selected:
-
-```text
-website_reader
-```
-
----
-
-#### PDF Reader
-
-Input:
-
-```text
-Summarize the uploaded PDF
-```
-
-Tool Selected:
-
-```text
-pdf_reader
-```
-
----
+Each file includes a title, assumptions, and professional document sections with formatted headings.
 
 ## Deployment
 
-### Backend Deployment (Render)
+### Backend Deployment
 
-Root Directory:
+Root directory:
 
 ```text
-backend
+be
 ```
 
-Build Command:
+Build command:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Start Command:
+Start command:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-Environment Variables:
+Environment variables:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
 TAVILY_API_KEY=your_tavily_api_key
 ```
 
----
+### Frontend Deployment
 
-### Frontend Deployment (Streamlit Cloud)
-
-Main File:
+Main file:
 
 ```text
-frontend/app.py
+fe/app.py
 ```
 
-Environment Variable:
+Environment variable:
 
 ```env
-BACKEND_URL=https://your-render-backend-url.onrender.com
+BACKEND_URL=https://your-backend-url
 ```
-
----
 
 ## Future Improvements
 
-* Multi-tool reasoning
-* Research report generation
+* Multi-tool reasoning across uploaded files and web data
+* Source citations in generated Word documents
 * Conversation memory
-* Source citations
-* RAG for PDFs
-* Chat history
 * Multi-PDF support
-* Downloadable research reports
-
----
-
-## Example Workflow
-
-```text
-User:
-Compare the latest AI trends with my uploaded PDF.
-
-Agent:
-1. Read PDF
-2. Search Latest AI Trends
-3. Compare Information
-4. Generate Final Report
-```
-
----
+* Download endpoint for generated documents
 
 ## Author
 
 Vamshi
-
-Built as an Agentic AI portfolio project demonstrating:
-
-* FastAPI
-* Streamlit
-* Groq
-* Tool Calling
-* Agentic AI
-* Web Search
-* PDF Processing
-* Website Content Analysis

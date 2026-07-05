@@ -6,6 +6,16 @@ __pycache__/
 
 uploads/
 
+generated_docs/
+
+be/generated_docs/
+
+be/generated_docs_verify/
+
+be/uvicorn_agent.log
+
+be/uvicorn_agent.err.log
+
 .venv/
 
 venv/
