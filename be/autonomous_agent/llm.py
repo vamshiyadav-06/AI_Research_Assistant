@@ -4,7 +4,7 @@ import re
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from groq import Groq
+from groq import Groq, GroqError
 
 load_dotenv()
 
@@ -29,11 +29,14 @@ def _client() -> Groq:
 
 
 def call_llm(messages: List[Dict[str, str]], temperature: float = 0.2) -> str:
-    response = _client().chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        temperature=temperature,
-    )
+    try:
+        response = _client().chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=temperature,
+        )
+    except GroqError as exc:
+        raise LLMError(f"Groq LLM request failed: {exc}") from exc
 
     return response.choices[0].message.content.strip()
 
