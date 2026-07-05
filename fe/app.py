@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import requests
 import streamlit as st
@@ -124,12 +125,34 @@ with document_tab:
                         "Document generated successfully."
                     )
 
+                    document_path = result["document_path"]
+                    document_name = Path(document_path).name
+                    download_response = requests.get(
+                        f"{BACKEND_URL}/download-document/{document_name}",
+                        timeout=60
+                    )
+
+                    if download_response.status_code == 200:
+
+                        st.download_button(
+                            label="Download Word Document",
+                            data=download_response.content,
+                            file_name=document_name,
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        )
+
+                    else:
+
+                        st.warning(
+                            "Document was generated, but the download endpoint could not find the file."
+                        )
+
                     st.subheader(
                         "Document Path"
                     )
 
                     st.write(
-                        result["document_path"]
+                        document_path
                     )
 
                     st.subheader(

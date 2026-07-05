@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -7,6 +8,7 @@ from fastapi import UploadFile
 from fastapi import File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
@@ -31,9 +33,14 @@ app.add_middleware(
 )
 
 UPLOAD_FOLDER = "uploads"
+GENERATED_DOCS_FOLDER = "generated_docs"
 
 os.makedirs(
     UPLOAD_FOLDER,
+    exist_ok=True
+)
+os.makedirs(
+    GENERATED_DOCS_FOLDER,
     exist_ok=True
 )
 
@@ -138,3 +145,24 @@ async def agent(
                 details={"error": str(exc)}
             ).dict()
         )
+
+
+@app.get("/download-document/{filename}")
+async def download_document(
+    filename: str
+):
+
+    safe_filename = Path(filename).name
+    file_path = Path(GENERATED_DOCS_FOLDER) / safe_filename
+
+    if safe_filename != filename or not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    return FileResponse(
+        path=file_path,
+        filename=safe_filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
