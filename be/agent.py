@@ -1,8 +1,9 @@
 import os
 import re
+import logging
 
 from dotenv import load_dotenv
-from groq import Groq
+from groq import Groq, GroqError
 
 from tools.web_search import search_web
 from tools.website_reader import read_website
@@ -10,14 +11,69 @@ from tools.pdf_reader import read_pdf
 
 load_dotenv()
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+logger = logging.getLogger(__name__)
 
-MODEL_NAME = os.getenv(
-    "GROQ_MODEL",
-    "openai/gpt-oss-120b"
-)
+DEFAULT_MODELS = [
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "allam-2-7b",
+    "openai/gpt-oss-safeguard-20b",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "deepseek-r1-distill-llama-70b",
+    "moonshotai/kimi-k2-instruct",
+]
+
+
+def get_model_names():
+
+    configured_models = os.getenv("GROQ_MODELS")
+
+    if configured_models:
+        return [
+            model.strip()
+            for model in configured_models.split(",")
+            if model.strip()
+        ]
+
+    legacy_model = os.getenv("GROQ_MODEL")
+
+    if legacy_model:
+        return [legacy_model] + [
+            model
+            for model in DEFAULT_MODELS
+            if model != legacy_model
+        ]
+
+    return DEFAULT_MODELS
+
+
+def call_completion(messages, temperature=0):
+
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+
+    client = Groq(api_key=api_key)
+    last_error = None
+
+    for model_name in get_model_names():
+        try:
+            return client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=temperature
+            )
+        except GroqError as exc:
+            last_error = exc
+            logger.warning("Groq model %s failed: %s", model_name, exc)
+
+    raise RuntimeError(
+        f"All configured Groq models failed. Last error: {last_error}"
+    )
 
 PDF_PATH = "uploads/latest.pdf"
 
@@ -49,8 +105,7 @@ Query:
 {query}
 """
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
+    response = call_completion(
         messages=[
             {
                 "role": "user",
@@ -119,8 +174,7 @@ Generate a clear,
 well-structured answer.
 """
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
+    response = call_completion(
         messages=[
             {
                 "role": "user",

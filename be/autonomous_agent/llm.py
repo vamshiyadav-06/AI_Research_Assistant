@@ -8,7 +8,41 @@ from groq import Groq, GroqError
 
 load_dotenv()
 
-MODEL_NAME = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+DEFAULT_MODELS = [
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+    "allam-2-7b",
+    "openai/gpt-oss-safeguard-20b",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "deepseek-r1-distill-llama-70b",
+    "moonshotai/kimi-k2-instruct",
+]
+
+
+def get_model_names() -> List[str]:
+
+    configured_models = os.getenv("GROQ_MODELS")
+
+    if configured_models:
+        return [
+            model.strip()
+            for model in configured_models.split(",")
+            if model.strip()
+        ]
+
+    legacy_model = os.getenv("GROQ_MODEL")
+
+    if legacy_model:
+        return [legacy_model] + [
+            model
+            for model in DEFAULT_MODELS
+            if model != legacy_model
+        ]
+
+    return DEFAULT_MODELS
 
 
 class LLMError(RuntimeError):
@@ -29,16 +63,22 @@ def _client() -> Groq:
 
 
 def call_llm(messages: List[Dict[str, str]], temperature: float = 0.2) -> str:
-    try:
-        response = _client().chat.completions.create(
-            model=MODEL_NAME,
-            messages=messages,
-            temperature=temperature,
-        )
-    except GroqError as exc:
-        raise LLMError(f"Groq LLM request failed: {exc}") from exc
+    last_error = None
 
-    return response.choices[0].message.content.strip()
+    for model_name in get_model_names():
+        try:
+            response = _client().chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=temperature,
+            )
+            return response.choices[0].message.content.strip()
+        except GroqError as exc:
+            last_error = exc
+
+    raise LLMError(
+        f"All configured Groq models failed. Last error: {last_error}"
+    ) from last_error
 
 
 def extract_json(text: str) -> Dict[str, Any]:
