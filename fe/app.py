@@ -10,6 +10,34 @@ BACKEND_URL = os.getenv(
     "https://ai-research-assistant-gdo1.onrender.com"
 )
 
+
+def read_api_response(response, action):
+
+    try:
+        result = response.json()
+    except ValueError:
+        response_text = response.text.strip()
+        st.error(
+            f"{action} failed with HTTP {response.status_code}. "
+            f"Server response: {response_text or 'empty response'}"
+        )
+        return None
+
+    if not response.ok:
+        if isinstance(result, dict):
+            error_message = result.get("detail") or result.get("message")
+        else:
+            error_message = result
+
+        st.error(
+            f"{action} failed with HTTP {response.status_code}: "
+            f"{error_message or 'unknown server error'}"
+        )
+        return None
+
+    return result
+
+
 st.set_page_config(
     page_title="AI Research Assistant"
 )
@@ -71,10 +99,14 @@ with research_tab:
                     f"{BACKEND_URL}/ask",
                     json={
                         "query": query
-                    }
+                    },
+                    timeout=120
                 )
 
-                result = response.json()
+                result = read_api_response(response, "Research request")
+
+                if result is None:
+                    st.stop()
 
                 st.subheader(
                     "Tool Used"
@@ -117,9 +149,9 @@ with document_tab:
                     timeout=120
                 )
 
-                result = response.json()
+                result = read_api_response(response, "Document request")
 
-                if response.status_code == 200:
+                if result is not None:
 
                     st.success(
                         "Document generated successfully."
