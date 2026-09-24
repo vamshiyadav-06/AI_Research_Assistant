@@ -99,7 +99,20 @@ async def ask(
         ""
     )
 
-    result = run_agent(query)
+    try:
+        result = run_agent(query)
+    except Exception as exc:
+        logger.exception("Research request failed")
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "status": "error",
+                "message": "The research service failed while processing the request.",
+                "details": {
+                    "error": str(exc)
+                }
+            }
+        ) from exc
 
     return result
 

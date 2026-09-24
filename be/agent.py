@@ -14,6 +14,11 @@ client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
+MODEL_NAME = os.getenv(
+    "GROQ_MODEL",
+    "openai/gpt-oss-120b"
+)
+
 PDF_PATH = "uploads/latest.pdf"
 
 
@@ -45,7 +50,7 @@ Query:
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=MODEL_NAME,
         messages=[
             {
                 "role": "user",
@@ -115,7 +120,7 @@ well-structured answer.
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=MODEL_NAME,
         messages=[
             {
                 "role": "user",
